@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VERC Patient Recorder</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1e3a8a">
+    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22VERC%20Recorder%22,%22short_name%22:%22VERC%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23ffffff%22,%22theme_color%22:%22%231e3a8a%22}">
+
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+            font-family: 'Source Sans 3', sans-serif;
+            padding: 15px;
+            color: #1e293b;
+        }
+        .card {
+            max-width: 550px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(30, 58, 138, 0.15);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+            padding: 20px;
+            text-align: center;
+            color: white;
+        }
+        .body { padding: 20px; }
+        .label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #1e40af;
+            margin-bottom: 5px;
+        }
+        .input, .select {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #dbeafe;
+            border-radius: 10px;
+            background: #f8fafc;
+            outline: none;
+        }
+        .grid-vitals { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+        .grid-secondary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+
+        .api-section {
+            background: #fefce8;
+            border: 1px solid #fde047;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 20px;
+        }
+        .api-section.ok { background: #eff6ff; border-color: #93c5fd; }
+        .api-row { display: flex; gap: 8px; }
+        .api-input { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; }
+        .api-btn { padding: 8px 15px; font-weight: 600; border-radius: 6px; cursor: pointer; border: none; background: #1e3a8a; color: white; }
+
+        .rec-section {
+            background: #f1f5f9;
+            border: 2px dashed #cbd5e1;
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .timer { font-size: 36px; font-weight: 700; color: #1e293b; margin: 10px 0; }
+        .rec-btn {
+            width: 70px; height: 70px; border-radius: 50%; border: none; cursor: pointer;
+            background: #dc2626; color: white; font-size: 24px;
+            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
+        }
+        .rec-btn.on { animation: pulse 1.5s infinite; background: #ef4444; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0px rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0px rgba(239, 68, 68, 0); } }
+
+        .trans-btn {
+            width: 100%; padding: 16px; font-weight: 700; font-size: 15px;
+            background: #2563eb; color: white; border: none; border-radius: 12px; cursor: pointer;
+        }
+        .trans-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+
+        .textarea { 
+            width: 100%; min-height: 200px; margin-top: 15px; padding: 12px; 
+            border: 2px solid #e2e8f0; border-radius: 10px; font-family: 'Courier New', monospace; 
+            font-size: 14px; line-height: 1.5;
+        }
+        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        .btn-secondary { flex: 1; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: white; cursor: pointer; font-weight: 600; }
+        .btn-save { background: #166534; color: white; border: none; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="header">
+    <img src="logo.png" alt="VERC Logo" style="width: 120px; margin-bottom: 10px;">
+    <h2>VERC Patient Recorder</h2>
+    <p>ER Dictation & Vitals System</p>
+</div>
+    </div>
+
+    <div class="body">
+        <div id="apiConfig" class="api-section">
+            <div class="api-row" id="apiInputRow">
+                <input type="password" id="apiKey" class="api-input" placeholder="OpenAI API Key">
+                <button id="saveApiBtn" class="api-btn">Save</button>
+            </div>
+            <div class="api-row hidden" id="apiStoredRow">
+                <span style="font-size: 12px; flex:1; align-self:center; color: #1e40af; font-weight: 600;">✓ API Key Active</span>
+                <button id="removeApiBtn" class="api-btn" style="background: #ef4444;">Change</button>
+            </div>
+        </div>
+
+        <div class="grid-vitals">
+            <div>
+                <label class="label">Patient</label>
+                <input type="text" id="pName" class="input" placeholder="Name">
+            </div>
+            <div>
+                <label class="label">Species</label>
+                <select id="pSpecies" class="select">
+                    <option value="Canine">Canine</option>
+                    <option value="Feline">Feline</option>
+                    <option value="Equine">Equine</option>
+                    <option value="Exotic">Exotic</option>
+                </select>
+            </div>
+            <div>
+                <label class="label">Age</label>
+                <input type="text" id="pAge" class="input" placeholder="Age">
+            </div>
+        </div>
+
+        <div class="grid-secondary">
+            <div>
+                <label class="label">Sex/Repro</label>
+                <select id="pSex" class="select">
+                    <option value="MN">MN</option>
+                    <option value="FS">FS</option>
+                    <option value="MI">MI</option>
+                    <option value="FI">FI</option>
+                    <option value="Unknown">Unknown</option>
+                </select>
+            </div>
+            <div>
+                <label class="label">Weight (kg)</label>
+                <input type="number" step="0.1" id="pWeight" class="input" placeholder="0.0">
+            </div>
+        </div>
+
+        <div class="rec-section">
+            <div id="statusBadge" style="font-size: 12px; font-weight: 700; color: #64748b;">READY</div>
+            <div class="timer" id="timer">00:00</div>
+            <button id="recordBtn" class="rec-btn">⏺</button>
+            <div id="audioPreview" class="hidden" style="margin-top:15px;">
+                <audio id="audioPlayback" controls style="width:100%; height: 35px;"></audio>
+            </div>
+        </div>
+
+        <button id="transcribeBtn" class="trans-btn" disabled>Generate Medical Note</button>
+
+        <textarea id="transcript" class="textarea" placeholder="Transcription will appear here..."></textarea>
+
+        <div class="btn-group">
+            <button id="saveRecordBtn" class="btn-secondary btn-save">💾 Sync to Cloud</button>
+            <div style="display: flex; gap: 10px;">
+                <button id="copyBtn" class="btn-secondary">Copy Text</button>
+                <button onclick="if(confirm('Clear all?')) location.reload()" class="btn-secondary" style="color:#ef4444;">Reset</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let mediaRecorder;
+    let audioChunks = [];
+    let startTime;
+    let timerInterval;
+    let audioBlob;
+
+    const getEl = (id) => document.getElementById(id);
+
+    // 1. API KEY PERSISTENCE
+    const checkKey = () => {
+        const key = localStorage.getItem('vrec_key');
+        getEl('apiInputRow').classList.toggle('hidden', !!key);
+        getEl('apiStoredRow').classList.toggle('hidden', !key);
+        getEl('apiConfig').classList.toggle('ok', !!key);
+    };
+    getEl('saveApiBtn').onclick = () => { 
+        if(getEl('apiKey').value) {
+            localStorage.setItem('vrec_key', getEl('apiKey').value); 
+            checkKey(); 
+        }
+    };
+    getEl('removeApiBtn').onclick = () => { localStorage.removeItem('vrec_key'); checkKey(); };
+    checkKey();
+
+    // 2. RECORDING LOGIC
+    getEl('recordBtn').onclick = async () => {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+            mediaRecorder.stream.getTracks().forEach(t => t.stop());
+            clearInterval(timerInterval);
+            getEl('recordBtn').classList.remove('on');
+            getEl('statusBadge').innerText = "AUDIO READY";
+        } else {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+                    getEl('audioPlayback').src = URL.createObjectURL(audioBlob);
+                    getEl('audioPreview').classList.remove('hidden');
+                    getEl('transcribeBtn').disabled = false;
+                };
+                mediaRecorder.start();
+                startTime = Date.now();
+                timerInterval = setInterval(() => {
+                    const diff = Math.floor((Date.now() - startTime) / 1000);
+                    getEl('timer').innerText = `${Math.floor(diff/60).toString().padStart(2,'0')}:${(diff%60).toString().padStart(2,'0')}`;
+                }, 1000);
+                getEl('recordBtn').classList.add('on');
+                getEl('statusBadge').innerText = "RECORDING...";
+            } catch (err) { alert("Mic Error: Use localhost or HTTPS."); }
+        }
+    };
+
+    // 3. TRANSCRIPTION
+    getEl('transcribeBtn').onclick = async () => {
+        const key = localStorage.getItem('vrec_key');
+        if(!key) return alert("Missing API Key");
+
+        getEl('transcribeBtn').disabled = true;
+        getEl('transcribeBtn').innerText = "Analyzing...";
+
+        const formData = new FormData();
+        formData.append('file', audioBlob, 'rec.mp3');
+        formData.append('model', 'whisper-1');
+        formData.append('prompt', 'Veterinary ER SOAP note.');
+
+        try {
+            const resp = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${key}` },
+                body: formData
+            });
+            const data = await resp.json();
+            
+            const header = `### PATIENT: ${getEl('pName').value || '---'}\n` +
+                           `**SPECIES:** ${getEl('pSpecies').value} | **AGE:** ${getEl('pAge').value || '---'} | **SEX:** ${getEl('pSex').value} | **WT:** ${getEl('pWeight').value || '0'} kg\n\n---\n`;
+            
+            getEl('transcript').value = header + data.text;
+        } catch (e) { alert("Error: " + e.message); }
+        finally {
+            getEl('transcribeBtn').disabled = false;
+            getEl('transcribeBtn').innerText = "Generate Medical Note";
+        }
+    };
+
+    // 4. SYNC TO CLOUD (Google Apps Script)
+    getEl('saveRecordBtn').onclick = async () => {
+        const content = getEl('transcript').value;
+        if (!content) return alert("No content.");
+        
+        const now = new Date();
+        const fileName = `${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}-${String(now.getFullYear()).slice(-2)}_${getEl('pName').value || 'Patient'}.md`;
+
+        getEl('saveRecordBtn').innerText = "☁️ Syncing...";
+        
+        try {
+            // Replace with your /exec URL
+            await fetch('https://script.google.com/macros/s/AKfycbwAVgGDx6cHlIFmAbGbY0jyeb5fU31ow4zzeKUBSjCOLoDyR1kwvJ4sdM-6HbMwnEpk/exec', {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ fileName: fileName, content: content })
+            });
+            alert("Sync command sent!");
+        } catch (e) { alert("Fail: " + e.message); }
+        finally { getEl('saveRecordBtn').innerText = "💾 Sync to Cloud"; }
+    };
+
+    getEl('copyBtn').onclick = () => {
+        getEl('transcript').select();
+        document.execCommand('copy');
+        alert("Copied!");
+    };
+
+    // 5. SERVICE WORKER
+    if ('serviceWorker' in navigator) {
+        const swBlob = new Blob([`self.addEventListener('fetch', function(e) {});`], {type: 'text/javascript'});
+        navigator.serviceWorker.register(URL.createObjectURL(swBlob));
+    }
+</script>
+</body>
+</html>
